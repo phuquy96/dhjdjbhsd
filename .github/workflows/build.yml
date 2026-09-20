@@ -20,9 +20,9 @@ jobs:
     - name: Compile dylib with Clang
       run: |
         echo "[*] Bắt đầu biên dịch phuquy.dylib..."
-        clang -dynamiclib -arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+        clang++ -dynamiclib -arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
         -framework UIKit -framework Foundation -framework CoreGraphics \
-        phuquy.mm -o phuquy.dylib
+        -lc++ phuquy.mm -o phuquy.dylib
         echo "[+] Build thành công!"
 
     - name: Upload Artifact
