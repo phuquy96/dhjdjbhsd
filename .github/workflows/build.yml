@@ -1,0 +1,32 @@
+name: Build iOS Tweak dylib
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Command Line Tools
+      run: |
+        sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+
+    - name: Compile dylib with Clang
+      run: |
+        echo "[*] Bắt đầu biên dịch phuquy.dylib..."
+        clang -dynamiclib -arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+        -framework UIKit -framework Foundation -framework CoreGraphics \
+        phuquy.mm -o phuquy.dylib
+        echo "[+] Build thành công!"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: phuquy-dylib
+        path: phuquy.dylib
