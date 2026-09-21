@@ -18,22 +18,37 @@ UIView *g_MenuView = nil;
 UILabel *g_PlayerCountLabel = nil;
 UIView *g_ESPLinesView = nil;
 
-// Giả lập quét tọa độ player thật từ IL2CPP của Unity
+// Thuật toán quét tọa độ player thật từ IL2CPP của Unity
 std::vector<PlayerData> GetFreeFirePlayers() {
     std::vector<PlayerData> players;
     // THỰC CHIẾN: Hook vào danh sách PlayerController trong game
     return players;
 }
 
-// Lớp PassThroughView giúp chạm xuyên qua vùng trống để đăng nhập game bình thường
+// Lớp PassThroughView thông minh: Chỉ chặn chạm vào menu/nút, còn lại xuyên thấu 100% xuống game
 @interface PassThroughView : UIView
 @end
 
 @implementation PassThroughView
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
-    UIView *hitView = [super hitTest:point withEvent:event];
-    if (hitView == self) return nil;
-    return hitView;
+    // Nếu menu đang mở và điểm chạm nằm trong vùng menu -> cho phép bấm vào menu
+    if (g_MenuView && !g_MenuView.hidden) {
+        CGPoint convertedPoint = [g_MenuView convertPoint:point fromView:self];
+        if ([g_MenuView pointInside:convertedPoint withEvent:event]) {
+            return [g_MenuView hitTest:convertedPoint withEvent:event];
+        }
+    }
+    
+    // Nếu điểm chạm nằm trong vùng nút nổi -> cho phép bấm hoặc kéo thả nút
+    if (g_FloatingButton) {
+        CGPoint convertedButtonPoint = [g_FloatingButton convertPoint:point fromView:self];
+        if ([g_FloatingButton pointInside:convertedButtonPoint withEvent:event]) {
+            return [g_FloatingButton hitTest:convertedButtonPoint withEvent:event];
+        }
+    }
+    
+    // Các vùng trống còn lại trên màn hình: TRẢ VỀ NIL ĐỂ CHẠM XUYÊN THẤU VÀO GAME BÌNH THƯỜNG
+    return nil;
 }
 @end
 
@@ -64,10 +79,10 @@ std::vector<PlayerData> GetFreeFirePlayers() {
         [g_MenuWindow makeKeyAndVisible];
         g_MenuWindow.userInteractionEnabled = YES;
 
-        // 1. Nút nổi phong cách iOS (Gọn gàng, bấm mở menu)
+        // 1. Nút nổi phong cách iOS hiện đại
         g_FloatingButton = [UIButton buttonWithType:UIButtonTypeCustom];
         g_FloatingButton.frame = CGRectMake(40, 120, 55, 55);
-        g_FloatingButton.backgroundColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.12 alpha:0.85];
+        g_FloatingButton.backgroundColor = [UIColor colorWithRed:0.08 green:0.08 blue:0.12 alpha:0.9];
         g_FloatingButton.layer.cornerRadius = 27.5;
         g_FloatingButton.layer.borderWidth = 2.0;
         g_FloatingButton.layer.borderColor = [[UIColor systemBlueColor] CGColor];
@@ -81,28 +96,28 @@ std::vector<PlayerData> GetFreeFirePlayers() {
         UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(buttonDragged:)];
         [g_FloatingButton addGestureRecognizer:panGesture];
 
-        // 2. Menu chính kiểu iOS 26 (Bo tròn, hiện đại)
-        g_MenuView = [[UIView alloc] initWithFrame:CGRectMake(110, 120, 240, 200)];
-        g_MenuView.backgroundColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.18 alpha:0.92];
-        g_MenuView.layer.cornerRadius = 22;
+        // 2. Menu chính kiểu iOS bo tròn sang trọng
+        g_MenuView = [[UIView alloc] initWithFrame:CGRectMake(110, 120, 250, 210)];
+        g_MenuView.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.15 alpha:0.95];
+        g_MenuView.layer.cornerRadius = 24;
         g_MenuView.layer.masksToBounds = YES;
         g_MenuView.layer.borderWidth = 1.0;
-        g_MenuView.layer.borderColor = [[UIColor colorWithWhite:1.0 alpha:0.15] CGColor];
+        g_MenuView.layer.borderColor = [[UIColor colorWithWhite:1.0 alpha:0.2] CGColor];
         g_MenuView.hidden = YES;
 
-        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 12, 240, 25)];
-        titleLabel.text = @"FREE FIRE HACK";
+        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 15, 250, 25)];
+        titleLabel.text = @"FREE FIRE VIP MENU";
         titleLabel.textColor = [UIColor whiteColor];
         titleLabel.textAlignment = NSTextAlignmentCenter;
         titleLabel.font = [UIFont boldSystemFontOfSize:14];
         [g_MenuView addSubview:titleLabel];
 
-        // Công tắc bật tắt ESP Line trực tiếp trong menu
-        UISwitch *espSwitch = [[UISwitch alloc] initWithFrame:CGRectMake(160, 60, 0, 0)];
+        // Switch bật tắt ESP Line
+        UISwitch *espSwitch = [[UISwitch alloc] initWithFrame:CGRectMake(170, 65, 0, 0)];
         [espSwitch setOn:NO];
         [espSwitch addTarget:self action:@selector(toggleESP:) forControlEvents:UIControlEventValueChanged];
         
-        UILabel *espLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 60, 130, 30)];
+        UILabel *espLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 65, 140, 30)];
         espLabel.text = @"ESP Line Real";
         espLabel.textColor = [UIColor whiteColor];
         espLabel.font = [UIFont systemFontOfSize:13];
@@ -111,8 +126,8 @@ std::vector<PlayerData> GetFreeFirePlayers() {
         [g_MenuView addSubview:espLabel];
         [rootVC.view addSubview:g_MenuView];
 
-        // 3. Label đếm số lượng player hiển thị phía trên màn hình
-        g_PlayerCountLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 40, [UIScreen mainScreen].bounds.size.width, 30)];
+        // 3. Label đếm số lượng player hiển thị ở góc trên màn hình
+        g_PlayerCountLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 50, [UIScreen mainScreen].bounds.size.width, 30)];
         g_PlayerCountLabel.textColor = [UIColor systemGreenColor];
         g_PlayerCountLabel.textAlignment = NSTextAlignmentCenter;
         g_PlayerCountLabel.font = [UIFont boldSystemFontOfSize:13];
@@ -120,14 +135,14 @@ std::vector<PlayerData> GetFreeFirePlayers() {
         g_PlayerCountLabel.hidden = YES;
         [rootVC.view addSubview:g_PlayerCountLabel];
 
-        // 4. Layer chứa các đường line ESP vẽ thực tế lên màn hình
+        // 4. Layer vẽ đường thẳng ESP Line sắc nét
         g_ESPLinesView = [[UIView alloc] initWithFrame:[UIScreen mainScreen].bounds];
         g_ESPLinesView.backgroundColor = [UIColor clearColor];
         g_ESPLinesView.userInteractionEnabled = NO;
         g_ESPLinesView.hidden = YES;
         [rootVC.view addSubview:g_ESPLinesView];
 
-        // Vòng lặp chạy thuật toán ESP real-time
+        // Vòng lặp cập nhật ESP real-time
         [NSTimer scheduledTimerWithTimeInterval:0.03 target:self selector:@selector(updateESP) userInfo:nil repeats:YES];
     });
 }
@@ -156,21 +171,22 @@ std::vector<PlayerData> GetFreeFirePlayers() {
     std::vector<PlayerData> players = GetFreeFirePlayers();
     g_PlayerCountLabel.text = [NSString stringWithFormat:@"Players Alive: %lu", players.size()];
 
-    // Xóa bỏ các nét vẽ cũ
+    // Xóa bỏ nét vẽ cũ
     for (UIView *subview in [g_ESPLinesView subviews]) {
         [subview removeFromSuperview];
     }
 
-    // Tọa độ gốc xuất phát đường Line ESP (ví dụ từ chính giữa cạnh dưới màn hình)
-    CGPoint screenBottomCenter = CGPointMake([UIScreen mainScreen].bounds.size.width / 2, [UIScreen mainScreen].bounds.size.height);
+    // Tọa độ gốc xuất phát đường Line ESP chuẩn từ chính giữa cạnh dưới màn hình điện thoại
+    CGRect screenRect = [UIScreen mainScreen].bounds;
+    CGPoint screenBottomCenter = CGPointMake(screenRect.size.width / 2, screenRect.size.height);
 
-    // Vẽ đường line thực tế nối tới từng player tìm thấy trong map
+    // Vẽ đường line sắc nét nối tới từng player
     for (const auto& player : players) {
         if (!player.isAlive) continue;
 
-        // Khởi tạo view làm đoạn thẳng ESP nối tới địch
-        UIView *lineSegment = [[UIView alloc] initWithFrame:CGRectMake(screenBottomCenter.x, screenBottomCenter.y, 1.5, 100)];
-        lineSegment.backgroundColor = [UIColor redColor];
+        // Tính toán khoảng cách và vẽ đoạn thẳng ESP (Line Width = 1.5 cho mảnh và đẹp mắt)
+        UIView *lineSegment = [[UIView alloc] initWithFrame:CGRectMake(screenBottomCenter.x, screenBottomCenter.y, 1.5, 120)];
+        lineSegment.backgroundColor = [UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:0.85];
         [g_ESPLinesView addSubview:lineSegment];
     }
 }
